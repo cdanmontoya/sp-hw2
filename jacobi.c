@@ -46,6 +46,10 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#ifndef WIN32
+#include <sys/time.h>
+#endif
+#include <omp.h>
 
 void jacobi (
              int n, 
@@ -141,14 +145,6 @@ void jacobi (
 *       : u(n,m) - Dependent variable (solutions)
 *       : f(n,m) - Right hand side function 
 **************************************************************/
-
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
-#ifndef WIN32
-#include <sys/time.h>
-#endif
-#include <omp.h>
 int n, m, mits;
 double tol, relax, alpha;
 
