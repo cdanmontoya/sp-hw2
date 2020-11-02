@@ -18,9 +18,9 @@
  *
  */
 
-#define U(i,j) u[(i)*n+(j)]
-#define UOLD(i,j) uold[(i)*n+(j)]
-#define F(i,j) f[(i)*n+(j)]
+#define U(i,j) u[(i)*n+(j)][0]
+#define UOLD(i,j) uold[(i)*n+(j)][0]
+#define F(i,j) f[(i)*n+(j)][0]
 /* 
 ******************************************************************
 * Subroutine HelmholtzJ
@@ -58,20 +58,24 @@ void jacobi (
              double dy, 
              double alpha, 
              double omega, 
-             double *u, 
-             double *f, 
+             double **u, 
+             double **f, 
              double tol, 
              int maxit )
 
 {
   int i,j,k;
   double error, resid, ax, ay, b;
-  double *uold;
+  double **uold;
   
-  uold = (double *) malloc(sizeof(double)*n*m);
+  uold = malloc(sizeof(double*)*n*m);
   if (!uold){
     fprintf(stderr, "Error: cant allocate memory\n");
     exit(1);
+  }
+  #pragma omp parallel for
+  for(int i = 0; i < n*m; i++) {
+      uold[i] = malloc(sizeof (double) * 8);
   }
 
   ax = 1.0/(dx * dx); /* X-direction coef */
@@ -150,7 +154,7 @@ double tol, relax, alpha;
 
 void jacobi (int n, int m, double dx, double dy, 
              double alpha, double omega, 
-             double *u, double *f, 
+             double **u, double **f, 
              double tol, int maxit );
 
 
@@ -165,8 +169,8 @@ void initialize(
                 double alpha,
                 double *dx,
                 double *dy,
-                double *u,
-                double *f)
+                double **u,
+                double **f)
 {
   int i,j,xx,yy;
 
@@ -199,8 +203,8 @@ void error_check(
                  double alpha,
                  double dx,
                  double dy,
-                 double *u,
-                 double *f)
+                 double **u,
+                 double **f)
 {
   int i,j;
   double xx, yy, temp, error;
@@ -229,7 +233,7 @@ void error_check(
 
 
 int main(int argc, char* argv[]){
-    double *u, *f, dx, dy;
+    double **u, **f, dx, dy;
     double r1;
 
     /* Read info */ 
@@ -246,12 +250,17 @@ int main(int argc, char* argv[]){
     printf("-> %d, %d, %f, %f, %f, %d\n",
            n, m, alpha, relax, tol, mits);
     
-    u = (double *) malloc(n*m*sizeof(double));
-    f = (double *) malloc(n*m*sizeof(double));
+    u = malloc(sizeof (double*) * m * n);
+    f = malloc(sizeof (double*) * m * n);
 
     if (!u || !f){
       fprintf(stderr, "Error: Can't allocate memory\n");
       exit(1);
+    }
+
+    for(int i = 0; i < n*m; i++) {
+      u[i] = malloc(sizeof (double) * 8);
+      f[i] = malloc(sizeof (double) * 8);
     }
 
     /* arrays are allocated and initialzed */
