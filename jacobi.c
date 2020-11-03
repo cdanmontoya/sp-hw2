@@ -18,9 +18,9 @@
  *
  */
 
-#define U(i,j) u[(i)*n+(j)]
-#define UOLD(i,j) uold[(i)*n+(j)]
-#define F(i,j) f[(i)*n+(j)]
+#define U(i, j) u[(i)*n + (j)]
+#define UOLD(i, j) uold[(i)*n + (j)]
+#define F(i, j) f[(i)*n + (j)]
 /* 
 ******************************************************************
 * Subroutine HelmholtzJ
@@ -51,75 +51,76 @@
 #endif
 #include <omp.h>
 
-void jacobi (
-             int n, 
-             int m, 
-             double dx, 
-             double dy, 
-             double alpha, 
-             double omega, 
-             double *u, 
-             double *f, 
-             double tol, 
-             int maxit )
+void jacobi(
+    int n,
+    int m,
+    double dx,
+    double dy,
+    double alpha,
+    double omega,
+    double *u,
+    double *f,
+    double tol,
+    int maxit)
 
 {
-  int i,j,k;
+  int i, j, k;
   double error, resid, ax, ay, b;
   double *uold;
-  
-  uold = (double *) malloc(sizeof(double)*n*m);
-  if (!uold){
+
+  uold = (double *)malloc(sizeof(double) * n * m);
+  if (!uold)
+  {
     fprintf(stderr, "Error: cant allocate memory\n");
     exit(1);
   }
 
-  ax = 1.0/(dx * dx); /* X-direction coef */
-  ay = 1.0/(dy*dy); /* Y_direction coef */
-  b = -2.0/(dx*dx)-2.0/(dy*dy) - alpha; /* Central coeff */
+  ax = 1.0 / (dx * dx);                           /* X-direction coef */
+  ay = 1.0 / (dy * dy);                           /* Y_direction coef */
+  b = -2.0 / (dx * dx) - 2.0 / (dy * dy) - alpha; /* Central coeff */
 
   error = 10.0 * tol;
 
-
   k = 1;
 
-  while (k <= maxit && error > tol) {
+  while (k <= maxit && error > tol)
+  {
     error = 0.0;
     /* copy new solution into old */
-    for (j=0; j<m; j++)
-      #pragma omp parallel for private(i)
-      for (i=0; i<n; i++){
-        UOLD(j,i) = U(j,i);
+#pragma omp parallel for private(j)
+    for (j = 0; j < m; j++)
+#pragma omp parallel for private(i)
+      for (i = 0; i < n; i++)
+      {
+        UOLD(j, i) = U(j, i);
       }
 
-    /* compute stencil, residual and update */
-    for (j=1; j<m-1; j++){
-      #pragma omp parallel for private(resid) reduction(+:error)
-      for (i=1; i<n-1; i++){
-        resid =(
-                ax * (UOLD(j,i-1) + UOLD(j,i+1))
-                + ay * (UOLD(j-1,i) + UOLD(j+1,i))
-                + b * UOLD(j,i) - F(j,i)
-                ) / b;
-        
+      /* compute stencil, residual and update */
+#pragma omp parallel for private(j)
+    for (j = 1; j < m - 1; j++)
+    {
+#pragma omp parallel for private(resid) reduction(+ \
+                                                  : error)
+      for (i = 1; i < n - 1; i++)
+      {
+        resid = (ax * (UOLD(j, i - 1) + UOLD(j, i + 1)) + ay * (UOLD(j - 1, i) + UOLD(j + 1, i)) + b * UOLD(j, i) - F(j, i)) / b;
+
         /* update solution */
-        U(j,i) = UOLD(j,i) - omega * resid;
+        U(j, i) = UOLD(j, i) - omega * resid;
 
         /* accumulate residual error */
-        error =error + resid*resid;
-
+        error = error + resid * resid;
       }
     }
     /* error check */
     k++;
-    error = sqrt(error) /(n*m);
+    error = sqrt(error) / (n * m);
 
   } /* while */
 
   printf("Total Number of Iterations %d\n", k);
   printf("Residual                   %.15g\n", error);
-}  
-
+}
 
 /*
 ************************************************************
@@ -148,129 +149,128 @@ void jacobi (
 int n, m, mits;
 double tol, relax, alpha;
 
-void jacobi (int n, int m, double dx, double dy, 
-             double alpha, double omega, 
-             double *u, double *f, 
-             double tol, int maxit );
-
+void jacobi(int n, int m, double dx, double dy,
+            double alpha, double omega,
+            double *u, double *f,
+            double tol, int maxit);
 
 /******************************************************
 * Initializes data 
 * Assumes exact solution is u(x,y) = (1-x^2)*(1-y^2)
 *
 ******************************************************/
-void initialize(  
-                int n,    
-                int m,
-                double alpha,
-                double *dx,
-                double *dy,
-                double *u,
-                double *f)
+void initialize(
+    int n,
+    int m,
+    double alpha,
+    double *dx,
+    double *dy,
+    double *u,
+    double *f)
 {
-  int i,j,xx,yy;
+  int i, j, xx, yy;
 
-  *dx = 2.0 / (n-1);
-  *dy = 2.0 / (m-1);
+  *dx = 2.0 / (n - 1);
+  *dy = 2.0 / (m - 1);
 
-  /* Initilize initial condition and RHS */
-  for (j=0; j<m; j++){
-    // printf("%d\n",omp_get_thread_num());
-    #pragma omp parallel for private(xx, yy)
-    for (i=0; i<n; i++){
-      xx = -1.0 + *dx * (i-1);
-      yy = -1.0 + *dy * (j-1);
-      U(j,i) = 0.0;
-      F(j,i) = -alpha * (1.0 - xx*xx) * (1.0 - yy*yy)
-                - 2.0 * (1.0 - xx*xx) - 2.0 * (1.0 - yy*yy);
+/* Initilize initial condition and RHS */
+#pragma omp parallel for private(j)
+  for (j = 0; j < m; j++)
+  {
+// printf("%d\n",omp_get_thread_num());
+#pragma omp parallel for private(xx, yy)
+    for (i = 0; i < n; i++)
+    {
+      xx = -1.0 + *dx * (i - 1);
+      yy = -1.0 + *dy * (j - 1);
+      U(j, i) = 0.0;
+      F(j, i) = -alpha * (1.0 - xx * xx) * (1.0 - yy * yy) - 2.0 * (1.0 - xx * xx) - 2.0 * (1.0 - yy * yy);
     }
   }
-  
 }
-
 
 /************************************************************
 * Checks error between numerical and exact solution 
 *
 ************************************************************/
 void error_check(
-                 int n,
-                 int m,
-                 double alpha,
-                 double dx,
-                 double dy,
-                 double *u,
-                 double *f)
+    int n,
+    int m,
+    double alpha,
+    double dx,
+    double dy,
+    double *u,
+    double *f)
 {
-  int i,j;
+  int i, j;
   double xx, yy, temp, error;
 
-  dx = 2.0 / (n-1);
-  dy = 2.0 / (m-1);
+  dx = 2.0 / (n - 1);
+  dy = 2.0 / (m - 1);
   error = 0.0;
 
-  for (j=0; j<m; j++){
-    #pragma omp parallel for private(xx, yy, temp) reduction(+:error)
-    for (i=0; i<n; i++){
-      xx = -1.0 + dx * (i-1);
-      yy = -1.0 + dy * (j-1);
-      temp = U(j,i) - (1.0 - xx*xx) * (1.0 - yy*yy);
-      error += temp*temp;
+#pragma omp parallel for private(j)
+  for (j = 0; j < m; j++)
+  {
+#pragma omp parallel for private(xx, yy, temp) reduction(+ \
+                                                         : error)
+    for (i = 0; i < n; i++)
+    {
+      xx = -1.0 + dx * (i - 1);
+      yy = -1.0 + dy * (j - 1);
+      temp = U(j, i) - (1.0 - xx * xx) * (1.0 - yy * yy);
+      error += temp * temp;
     }
   }
 
-  error = sqrt(error)/(n*m);
+  error = sqrt(error) / (n * m);
 
   printf("Solution Error : %g\n", error);
-
 }
 
+int main(int argc, char *argv[])
+{
+  double *u, *f, dx, dy;
+  double r1;
 
+  /* Read info */
+  printf("Input n,m - grid dimension in x,y direction :\n ");
+  scanf("%d,%d", &n, &m);
+  printf("Input alpha - Helmholts constant : \n");
+  scanf("%lf", &alpha);
+  printf("Input relax - Successive over-relaxation parameter:\n ");
+  scanf("%lf", &relax);
+  printf("Input tol - error tolerance for iterrative solver:\n");
+  scanf("%lf", &tol);
+  printf("Input mits - Maximum iterations for solver:\n ");
+  scanf("%d", &mits);
+  printf("-> %d, %d, %f, %f, %f, %d\n",
+         n, m, alpha, relax, tol, mits);
 
+  u = (double *)malloc(n * m * sizeof(double));
+  f = (double *)malloc(n * m * sizeof(double));
 
-int main(int argc, char* argv[]){
-    double *u, *f, dx, dy;
-    double r1;
+  if (!u || !f)
+  {
+    fprintf(stderr, "Error: Can't allocate memory\n");
+    exit(1);
+  }
 
-    /* Read info */ 
-    printf("Input n,m - grid dimension in x,y direction :\n ");
-    scanf("%d,%d", &n, &m);
-    printf("Input alpha - Helmholts constant : \n");
-    scanf("%lf", &alpha);
-    printf("Input relax - Successive over-relaxation parameter:\n ");
-    scanf("%lf", &relax);
-    printf("Input tol - error tolerance for iterrative solver:\n");
-    scanf("%lf", &tol);
-    printf("Input mits - Maximum iterations for solver:\n ");
-    scanf("%d", &mits);
-    printf("-> %d, %d, %f, %f, %f, %d\n",
-           n, m, alpha, relax, tol, mits);
-    
-    u = (double *) malloc(n*m*sizeof(double));
-    f = (double *) malloc(n*m*sizeof(double));
+  /* arrays are allocated and initialzed */
+  initialize(n, m, alpha, &dx, &dy, u, f);
 
-    if (!u || !f){
-      fprintf(stderr, "Error: Can't allocate memory\n");
-      exit(1);
-    }
+  /* Solve Helmholtz eqiation */
+  r1 = omp_get_wtime();
 
-    /* arrays are allocated and initialzed */
-    initialize(n, m, alpha, &dx, &dy, u, f);
-    
+  jacobi(n, m, dx, dy, alpha, relax, u, f, tol, mits);
 
-    /* Solve Helmholtz eqiation */
-    r1 = omp_get_wtime();
+  r1 = omp_get_wtime() - r1;
 
-    jacobi(n, m, dx, dy, alpha, relax, u,f, tol, mits);
-    
-    r1 = omp_get_wtime() - r1;
+  printf(" elapsed time : %12.6f\n", r1);
+  printf(" MFlops       : %12.6g\n",
+         mits * (m - 2) * (n - 2) * 0.000001 * 13 / r1);
 
-    printf(" elapsed time : %12.6f\n", r1);
-    printf(" MFlops       : %12.6g\n",
-           mits*(m-2)*(n-2)*0.000001*13 / r1);
+  error_check(n, m, alpha, dx, dy, u, f);
 
-    error_check(n, m, alpha, dx, dy, u, f);
-    
-    
   return 0;
 }
