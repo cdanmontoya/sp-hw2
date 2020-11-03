@@ -86,6 +86,7 @@ void jacobi (
   while (k <= maxit && error > tol) {
     error = 0.0;
     /* copy new solution into old */
+    #pragma omp parallel for
     for (j=0; j<m; j++)
       #pragma omp parallel for private(i)
       for (i=0; i<n; i++){
@@ -93,6 +94,7 @@ void jacobi (
       }
 
     /* compute stencil, residual and update */
+    #pragma omp parallel for
     for (j=1; j<m-1; j++){
       #pragma omp parallel for private(resid) reduction(+:error)
       for (i=1; i<n-1; i++){
@@ -174,6 +176,7 @@ void initialize(
   *dy = 2.0 / (m-1);
 
   /* Initilize initial condition and RHS */
+  #pragma omp parallel for
   for (j=0; j<m; j++){
     // printf("%d\n",omp_get_thread_num());
     #pragma omp parallel for private(xx, yy)
@@ -209,6 +212,7 @@ void error_check(
   dy = 2.0 / (m-1);
   error = 0.0;
 
+  #pragma omp parallel for
   for (j=0; j<m; j++){
     #pragma omp parallel for private(xx, yy, temp) reduction(+:error)
     for (i=0; i<n; i++){
